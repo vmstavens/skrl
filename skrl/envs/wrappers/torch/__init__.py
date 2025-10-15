@@ -1,6 +1,5 @@
-from typing import Any, Union
-
 import re
+from typing import Any, Union
 
 from skrl import logger
 from skrl.envs.wrappers.torch.base import MultiAgentEnvWrapper, Wrapper
@@ -9,17 +8,25 @@ from skrl.envs.wrappers.torch.brax_envs import BraxWrapper
 from skrl.envs.wrappers.torch.deepmind_envs import DeepMindWrapper
 from skrl.envs.wrappers.torch.gym_envs import GymWrapper
 from skrl.envs.wrappers.torch.gymnasium_envs import GymnasiumWrapper
-from skrl.envs.wrappers.torch.isaacgym_envs import IsaacGymPreview2Wrapper, IsaacGymPreview3Wrapper
-from skrl.envs.wrappers.torch.isaaclab_envs import IsaacLabMultiAgentWrapper, IsaacLabWrapper
+from skrl.envs.wrappers.torch.isaacgym_envs import (
+    IsaacGymPreview2Wrapper,
+    IsaacGymPreview3Wrapper,
+)
+from skrl.envs.wrappers.torch.isaaclab_envs import (
+    IsaacLabMultiAgentWrapper,
+    IsaacLabWrapper,
+)
 from skrl.envs.wrappers.torch.omniverse_isaacgym_envs import OmniverseIsaacGymWrapper
 from skrl.envs.wrappers.torch.pettingzoo_envs import PettingZooWrapper
+from skrl.envs.wrappers.torch.playground_envs import PlaygroundWrapper
 from skrl.envs.wrappers.torch.robosuite_envs import RobosuiteWrapper
-
 
 __all__ = ["wrap_env", "Wrapper", "MultiAgentEnvWrapper"]
 
 
-def wrap_env(env: Any, wrapper: str = "auto", verbose: bool = True) -> Union[Wrapper, MultiAgentEnvWrapper]:
+def wrap_env(
+    env: Any, wrapper: str = "auto", verbose: bool = True
+) -> Union[Wrapper, MultiAgentEnvWrapper]:
     """Wrap an environment to use a common interface
 
     Example::
@@ -92,16 +99,22 @@ def wrap_env(env: Any, wrapper: str = "auto", verbose: bool = True) -> Union[Wra
                         return True
             return False
 
-        base_classes = [str(base).replace("<class '", "").replace("'>", "") for base in env.__class__.__bases__]
+        base_classes = [
+            str(base).replace("<class '", "").replace("'>", "")
+            for base in env.__class__.__bases__
+        ]
         try:
             base_classes += [
-                str(base).replace("<class '", "").replace("'>", "") for base in env.unwrapped.__class__.__bases__
+                str(base).replace("<class '", "").replace("'>", "")
+                for base in env.unwrapped.__class__.__bases__
             ]
         except:
             pass
         base_classes = sorted(list(set(base_classes)))
         if verbose:
-            logger.info(f"Environment wrapper: 'auto' (class: {', '.join(base_classes)})")
+            logger.info(
+                f"Environment wrapper: 'auto' (class: {', '.join(base_classes)})"
+            )
 
         if _in(["omni.isaac.lab.*", "isaaclab.*"], base_classes):
             return "isaaclab-*"
@@ -113,11 +126,15 @@ def wrap_env(env: Any, wrapper: str = "auto", verbose: bool = True) -> Union[Wra
             return "isaacgym-preview2"
         elif _in("brax.envs..*", base_classes):
             return "brax"
+        elif _in("playground..*", base_classes):
+            return "playground"
         elif _in("robosuite.environments.", base_classes):
             return "robosuite"
         elif _in("dm_env..*", base_classes):
             return "dm"
-        elif _in("pettingzoo.utils.env", base_classes) or _in("pettingzoo.utils.wrappers", base_classes):
+        elif _in("pettingzoo.utils.env", base_classes) or _in(
+            "pettingzoo.utils.wrappers", base_classes
+        ):
             return "pettingzoo"
         elif _in("gymnasium..*", base_classes):
             return "gymnasium"
@@ -156,6 +173,13 @@ def wrap_env(env: Any, wrapper: str = "auto", verbose: bool = True) -> Union[Wra
         if verbose:
             logger.info("Environment wrapper: Brax")
         return BraxWrapper(env)
+
+    # TODO: added this for playground compatibility
+    elif wrapper == "playground":
+        if verbose:
+            logger.info("Environment wrapper: Brax")
+        return PlaygroundWrapper(env)
+
     elif wrapper == "isaacgym-preview2":
         if verbose:
             logger.info("Environment wrapper: Isaac Gym (preview 2)")
