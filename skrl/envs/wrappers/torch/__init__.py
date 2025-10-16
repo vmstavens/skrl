@@ -124,10 +124,10 @@ def wrap_env(
             return "isaacgym-preview4"  # preview 4 is the same as 3
         elif _in("rlgpu.tasks..*.VecTask", base_classes):
             return "isaacgym-preview2"
+        elif _in("mujoco_playground._src.mjx_env.MjxEnv", base_classes):
+            return "playground"
         elif _in("brax.envs..*", base_classes):
             return "brax"
-        elif _in("playground..*", base_classes):
-            return "playground"
         elif _in("robosuite.environments.", base_classes):
             return "robosuite"
         elif _in("dm_env..*", base_classes):
@@ -177,7 +177,7 @@ def wrap_env(
     # TODO: added this for playground compatibility
     elif wrapper == "playground":
         if verbose:
-            logger.info("Environment wrapper: Brax")
+            logger.info("Environment wrapper: PlayGround")
         return PlaygroundWrapper(env)
 
     elif wrapper == "isaacgym-preview2":
