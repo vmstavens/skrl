@@ -116,6 +116,8 @@ def wrap_env(
                 f"Environment wrapper: 'auto' (class: {', '.join(base_classes)})"
             )
 
+        logger.info(f"{base_classes=}")
+
         if _in(["omni.isaac.lab.*", "isaaclab.*"], base_classes):
             return "isaaclab-*"
         elif _in("omni.isaac.gym..*", base_classes):

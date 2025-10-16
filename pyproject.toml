@@ -30,7 +30,9 @@ dependencies = [
     "gymnasium",
     "packaging",
     "playground>=0.0.5",
+    "robot-descriptions>=1.21.0",
     "tensorboard",
+    "torch>=2.9.0",
     "tqdm",
 ]
 [project.optional-dependencies]
