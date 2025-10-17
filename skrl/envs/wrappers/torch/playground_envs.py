@@ -7,8 +7,8 @@ import jax
 import numpy as np
 import torch
 from brax.envs.base import PipelineEnv
-from brax.io.torch import jax_to_torch, torch_to_jax
 
+# from brax.io.torch import jax_to_torch, torch_to_jax
 # NOTE: The following line will emit a warning and raise ImportError if `torch`
 # isn't available.
 from flax import struct
@@ -19,6 +19,7 @@ from jax import numpy as jp
 # Assuming these imports from mujoco_playground
 from mujoco_playground._src.mjx_env import MjxEnv
 from mujoco_playground._src.mjx_env import State as MjxState
+from mujoco_playground._src.wrapper_torch import _jax_to_torch, _torch_to_jax
 
 from skrl import logger
 from skrl.envs.wrappers.torch.base import Wrapper
@@ -40,17 +41,17 @@ class TorchWrapper(gym.Wrapper):
 
     def reset(self):
         obs = super().reset()
-        return jax_to_torch(obs, device=self.device)
+        return _jax_to_torch(obs)
 
     def step(self, action):
         # print(f".venv/lib/python3.12/site-packages/brax/envs/wrappers/torch.py {action=}")
         # print(f".venv/lib/python3.12/site-packages/brax/envs/wrappers/torch.py {type(action)=}")
-        action = torch_to_jax(action)
+        action = _torch_to_jax(action)
         obs, reward, done, info = super().step(action)
-        obs = jax_to_torch(obs, device=self.device)
-        reward = jax_to_torch(reward, device=self.device)
-        done = jax_to_torch(done, device=self.device)
-        info = jax_to_torch(info, device=self.device)
+        obs = _jax_to_torch(obs)
+        reward = _jax_to_torch(reward)
+        done = _jax_to_torch(done)
+        # info = _jax_to_torch(info)
         return obs, reward, done, info
 
 
