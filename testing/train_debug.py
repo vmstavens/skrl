@@ -8,7 +8,6 @@ import torch.nn as nn
 from mujoco_playground import registry
 from mujoco_playground._src.dm_control_suite import cartpole
 
-from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.envs.torch import wrap_env
 from skrl.envs.wrappers.torch.playground_envs import VmapWrapper
 from skrl.memories.torch import RandomMemory
@@ -19,13 +18,17 @@ from skrl.trainers.torch import SequentialTrainer
 from skrl.trainers.torch.sequential import SEQUENTIAL_TRAINER_DEFAULT_CONFIG
 from skrl.utils import set_seed
 from testing.env import XPose, default_config
-from testing.ppo_utils import get_ppo_default_models
+from testing.ppo import PPO, PPO_DEFAULT_CONFIG
+
+from .envs.cartpole import Balance
 
 
 def setup_environment(env_name: str = "xpose", num_envs: int = 256, debug=False):
+    # def setup_environment(env_name: str = "xpose", num_envs: int = 256, debug=False):
     """Set up the XPose environment with proper wrapping."""
     if debug:
-        env = cartpole.Balance(swing_up=False, sparse=False)
+        env = Balance()
+        # env = cartpole.Balance(swing_up=False, sparse=False)
         env = VmapWrapper(env, num_envs)
     else:
         # Register the environment
@@ -33,7 +36,6 @@ def setup_environment(env_name: str = "xpose", num_envs: int = 256, debug=False)
             env_name=env_name,
             env_class=XPose,
             cfg_class=default_config,
-            # env_name=env_name, env_class=XPose, cfg_class=default_config
         )
 
         # Load and wrap environment
@@ -46,19 +48,31 @@ def setup_environment(env_name: str = "xpose", num_envs: int = 256, debug=False)
 
 
 def setup_agent(env, device):
-    """Set up PPO agent with configuration."""
+    """Set up PPO agent with improved configuration."""
     # Memory
     memory = RandomMemory(memory_size=128, num_envs=env.num_envs, device=device)
+    expert_memory = RandomMemory(
+        memory_size=5000, num_envs=env.num_envs, device=device, replacement=False
+    )
 
-    # Models
+    from .ppo_utils import get_ppo_default_models
+
     models_ppo = get_ppo_default_models(env)
+
+    # Models - using separate policy and value networks
+    # models_ppo = {}
+    # models_ppo["policy"] = Shared(env.observation_space, env.action_space, device)
+    # models_ppo["value"] = Shared(
+    #     env.observation_space, env.action_space, device
+    # )  # same instance: shared model
+
     # PPO configuration
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
 
-    # Training parameters
+    # Improved training parameters
     cfg_ppo["rollouts"] = 128
-    cfg_ppo["learning_epochs"] = 2
-    cfg_ppo["mini_batches"] = 64
+    cfg_ppo["learning_epochs"] = 4  # Increased
+    cfg_ppo["mini_batches"] = 16  # Reduced for better gradient estimates
     cfg_ppo["discount_factor"] = 0.99
     cfg_ppo["lambda"] = 0.95
     cfg_ppo["learning_rate"] = 3e-4
@@ -66,14 +80,15 @@ def setup_agent(env, device):
     cfg_ppo["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.008}
     cfg_ppo["random_timesteps"] = 0
     cfg_ppo["learning_starts"] = 0
-    cfg_ppo["grad_norm_clip"] = 1.0
+    cfg_ppo["grad_norm_clip"] = 0.5  # Less restrictive
     cfg_ppo["ratio_clip"] = 0.2
     cfg_ppo["value_clip"] = 0.2
     cfg_ppo["clip_predicted_values"] = True
-    cfg_ppo["entropy_loss_scale"] = 0.0
-    cfg_ppo["value_loss_scale"] = 2.0
+    cfg_ppo["entropy_loss_scale"] = 0.01  # Added for exploration
+    cfg_ppo["value_loss_scale"] = 1.0  # Reduced
     cfg_ppo["kl_threshold"] = 0
-    cfg_ppo["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
+    # Reduced reward scaling
+    cfg_ppo["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.5
 
     # Preprocessors
     cfg_ppo["state_preprocessor"] = RunningStandardScaler
@@ -89,7 +104,7 @@ def setup_agent(env, device):
     model_path.mkdir(parents=True, exist_ok=True)
 
     cfg_ppo["experiment"]["write_interval"] = 50
-    cfg_ppo["experiment"]["checkpoint_interval"] = 200
+    cfg_ppo["experiment"]["checkpoint_interval"] = 1000
     cfg_ppo["experiment"]["directory"] = model_path.as_posix()
     cfg_ppo["experiment"]["experiment_name"] = Path(__file__).stem
     cfg_ppo["experiment"]["wandb"] = True
@@ -98,6 +113,7 @@ def setup_agent(env, device):
     agent = PPO(
         models=models_ppo,
         memory=memory,
+        expert_memory=expert_memory,
         cfg=cfg_ppo,
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -114,9 +130,7 @@ def main():
 
     # Setup environment
     print("Setting up environment...")
-    # _env_name = "CartpoleBalance"
-    env = setup_environment(num_envs=256, debug=False)
-    # env = setup_environment(env_name="xpose", num_envs=256)
+    env = setup_environment(num_envs=256, debug=True)
     device = env.device
 
     # Setup agent
@@ -124,10 +138,10 @@ def main():
     agent = setup_agent(env, device)
     agent.set_mode("train")
 
-    # Setup trainer
+    # Setup trainer with increased timesteps
     print("Setting up trainer...")
     cfg_trainer = SEQUENTIAL_TRAINER_DEFAULT_CONFIG.copy()
-    cfg_trainer["timesteps"] = 200_000
+    cfg_trainer["timesteps"] = 50_000
     cfg_trainer["eval_frequency"] = 1000
     cfg_trainer["headless"] = True
 

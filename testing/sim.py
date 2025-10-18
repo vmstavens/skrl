@@ -31,16 +31,35 @@ class MjSim(BaseSim):
         _XML = """
         <mujoco>
 
+        <visual>
+            <rgba haze="0.15 0.25 0.35 1"/>
+            <quality shadowsize="4096"/>
+            <map stiffness="700" shadowscale="0.5" fogstart="1" fogend="150" zfar="40" haze="1"/>
+        </visual>
+
+        <asset>
+            <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="1 1 1" width="512" height="512"/>
+            <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2"
+            width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
+
+            <material name="matplane" reflectance="0.3" texture="texplane" texrepeat="10 10" texuniform="true"/>
+        </asset>
+
+
         <option iterations="1" ls_iterations="5" timestep="0.004" integrator="implicitfast">
             <flag eulerdamp="disable"/>
         </option>
 
             <worldbody>
+                <body name="target" mocap="true">
+                    <geom name="target" type="sphere" size="0.005" contype="0" conaffinity="0" rgba="0 0.5 0 0.3"/>
+                </body>
+                <camera name="lookat" mode="targetbody" target="agent" pos="0.2 0.2 0.2"/>
                 <body name="agent" gravcomp="1">
                     <joint name="x" type="slide" axis="1 0 0" range="-1 1"/>
                     <joint name="y" type="slide" axis="0 1 0" range="-1 1"/>
                     <joint name="z" type="slide" axis="0 0 1" range="-1 1"/>
-                    <geom name="agent" type="box" size="0.01 0.01 0.01" contype="0" conaffinity="0"/>
+                    <geom name="agent" type="box" size="0.01 0.01 0.01" contype="0" conaffinity="0" rgba="0.5 0 0 0.3"/>
                 </body>
             </worldbody>
             <actuator>

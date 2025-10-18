@@ -1,9 +1,12 @@
 import contextlib
 from typing import Any, Callable, ClassVar, Dict, Optional, Tuple
 
+import cv2
 import gym
 import gymnasium
 import jax
+import mujoco as mj
+import mujoco.mjx as mjx
 import numpy as np
 import torch
 from brax.envs.base import PipelineEnv
@@ -137,6 +140,7 @@ class VectorGymWrapper(gym.vector.VectorEnv):
         self.seed(seed)
         self.backend = backend
         self._state = None
+        self._renderer = None
 
         obs = np.inf * np.ones(self._env.observation_size, dtype="float32")
         obs_space = spaces.Box(-obs, obs, dtype="float32")
@@ -172,17 +176,26 @@ class VectorGymWrapper(gym.vector.VectorEnv):
     def seed(self, seed: int = 0):
         self._key = jax.random.PRNGKey(seed)
 
-    def render(self, mode="human", width=256, height=256):
+    def render(self, mode="human", width=256, height=256, cam_name: str = "lookatcart"):
+        if self._renderer is None:
+            self._renderer = mj.Renderer(self._env.mj_model, width=width, height=height)
+            if self._env.mj_model.ncam == 0:
+                logger.warning(
+                    "You seem not to have defined a camera in your simulation, this i strongly recommended. Defaulting to the abstract camera."
+                )
+                self._cam_id = -1
+            else:
+                self._cam_id = self._env.mj_model.cam(cam_name).id
         if mode == "rgb_array":
-            sys, state = self._env.sys, self._state
-            if state is None:
-                raise RuntimeError("must call reset or step before rendering")
-            state_list = [state.take(i).pipeline_state for i in range(self.num_envs)]
-            return np.stack(
-                image.render_array(sys, state_list, width=width, height=height)
-            )
+            state: MjxState = self._state
+            data = mjx.get_data(self._env.mj_model, state.data)[0]
+            self._renderer.update_scene(data=data, camera=self._cam_id)
+            image = np.zeros(shape=(width, height, 3))
+            image = self._renderer.render()
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            return image
         else:
-            return super().render(mode=mode)  # just raise an exception
+            return super().render(mode=mode)
 
 
 class VmapWrapper(Wrapper):
@@ -235,7 +248,7 @@ def create(
 
 
 class PlaygroundWrapper(Wrapper):
-    def __init__(self, env: Any) -> None:
+    def __init__(self, env: MjxEnv) -> None:
         """Brax environment wrapper
 
         :param env: The environment to wrap
@@ -302,18 +315,18 @@ class PlaygroundWrapper(Wrapper):
 
     def render(self, *args, **kwargs) -> None:
         """Render the environment"""
-        frame = self._env.render(mode="rgb_array")
+        frame = self._env.render(mode="rgb_array", **kwargs)
 
         # render the frame using OpenCV
-        try:
-            import cv2
+        # try:
+        #     import cv2
 
-            cv2.imshow("env", cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            cv2.waitKey(1)
-        except ImportError as e:
-            logger.warning(
-                f"Unable to import opencv-python: {e}. Frame will not be rendered."
-            )
+        #     cv2.imshow("env", cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        #     cv2.waitKey(1)
+        # except ImportError as e:
+        #     logger.warning(
+        #         f"Unable to import opencv-python: {e}. Frame will not be rendered."
+        #     )
         return frame
 
     def close(self) -> None:

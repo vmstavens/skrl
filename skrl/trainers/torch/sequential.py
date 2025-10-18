@@ -112,6 +112,16 @@ class SequentialTrainer(Trainer):
                 # step the environments
                 next_states, rewards, terminated, truncated, infos = self.env.step(actions)
 
+                # if torch.any(terminated):
+                #     print(f"{terminated=}")
+                #     print(f"{rewards=}")
+                #     print(f"{next_states=}")
+                #     print(f"{states=}")
+                #     print(f"{truncated=}")
+                #     print(f"{infos=}")
+                    # quit()
+
+
                 # render scene
                 if not self.headless:
                     self.env.render()
