@@ -1,7 +1,6 @@
 from typing import Any, Tuple
 
 import gymnasium
-
 import torch
 
 from skrl import logger
@@ -34,14 +33,20 @@ class BraxWrapper(Wrapper):
     @property
     def observation_space(self) -> gymnasium.Space:
         """Observation space"""
-        return convert_gym_space(self._unwrapped.observation_space, squeeze_batch_dimension=True)
+        return convert_gym_space(
+            self._unwrapped.observation_space, squeeze_batch_dimension=True
+        )
 
     @property
     def action_space(self) -> gymnasium.Space:
         """Action space"""
-        return convert_gym_space(self._unwrapped.action_space, squeeze_batch_dimension=True)
+        return convert_gym_space(
+            self._unwrapped.action_space, squeeze_batch_dimension=True
+        )
 
-    def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
+    def step(
+        self, actions: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
         """Perform a step in the environment
 
         :param actions: The actions to perform
@@ -50,10 +55,20 @@ class BraxWrapper(Wrapper):
         :return: Observation, reward, terminated, truncated, info
         :rtype: tuple of torch.Tensor and any other info
         """
-        observation, reward, terminated, info = self._env.step(unflatten_tensorized_space(self.action_space, actions))
-        observation = flatten_tensorized_space(tensorize_space(self.observation_space, observation))
+        observation, reward, terminated, info = self._env.step(
+            unflatten_tensorized_space(self.action_space, actions)
+        )
+        observation = flatten_tensorized_space(
+            tensorize_space(self.observation_space, observation)
+        )
         truncated = torch.zeros_like(terminated)
-        return observation, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), info
+        return (
+            observation,
+            reward.view(-1, 1),
+            terminated.view(-1, 1),
+            truncated.view(-1, 1),
+            info,
+        )
 
     def reset(self) -> Tuple[torch.Tensor, Any]:
         """Reset the environment
@@ -62,7 +77,9 @@ class BraxWrapper(Wrapper):
         :rtype: torch.Tensor and any other info
         """
         observation = self._env.reset()
-        observation = flatten_tensorized_space(tensorize_space(self.observation_space, observation))
+        observation = flatten_tensorized_space(
+            tensorize_space(self.observation_space, observation)
+        )
         return observation, {}
 
     def render(self, *args, **kwargs) -> None:
@@ -76,7 +93,9 @@ class BraxWrapper(Wrapper):
             cv2.imshow("env", cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             cv2.waitKey(1)
         except ImportError as e:
-            logger.warning(f"Unable to import opencv-python: {e}. Frame will not be rendered.")
+            logger.warning(
+                f"Unable to import opencv-python: {e}. Frame will not be rendered."
+            )
         return frame
 
     def close(self) -> None:

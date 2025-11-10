@@ -2,9 +2,17 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,c,c++,visualstudiocode,cmake
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,c,c++,visualstudiocode,cmake
 wandb/
+data/
+memories/
+my_plots/
+test.png
+test.py
 uv.lock
 typings/
 sb.ipynb
+testing/train/results/
+testing/experiments/results/
+testing/experiments/media/
 ### Other files ###
 *.xml
 *.mp4

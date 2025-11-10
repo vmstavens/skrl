@@ -18,8 +18,10 @@ from skrl.envs.wrappers.torch.isaaclab_envs import (
 )
 from skrl.envs.wrappers.torch.omniverse_isaacgym_envs import OmniverseIsaacGymWrapper
 from skrl.envs.wrappers.torch.pettingzoo_envs import PettingZooWrapper
-from skrl.envs.wrappers.torch.playground_envs import PlaygroundWrapper
+
+# from skrl.envs.wrappers.torch.playground_envs import PlaygroundWrapper
 from skrl.envs.wrappers.torch.robosuite_envs import RobosuiteWrapper
+from testing.wrappers import PlaygroundWrapper
 
 __all__ = ["wrap_env", "Wrapper", "MultiAgentEnvWrapper"]
 
@@ -115,8 +117,6 @@ def wrap_env(
             logger.info(
                 f"Environment wrapper: 'auto' (class: {', '.join(base_classes)})"
             )
-
-        logger.info(f"{base_classes=}")
 
         if _in(["omni.isaac.lab.*", "isaaclab.*"], base_classes):
             return "isaaclab-*"

@@ -1,15 +1,13 @@
-from typing import List, Optional, Union
-
 import copy
 import sys
-import tqdm
+from typing import List, Optional, Union
 
 import torch
+import tqdm
 
 from skrl.agents.torch import Agent
 from skrl.envs.wrappers.torch import Wrapper
 from skrl.trainers.torch import Trainer
-
 
 # fmt: off
 # [start-config-dict-torch]
@@ -91,11 +89,11 @@ class SequentialTrainer(Trainer):
 
         # reset env
         states, infos = self.env.reset()
-
         for timestep in tqdm.tqdm(
-            range(self.initial_timestep, self.timesteps), disable=self.disable_progressbar, file=sys.stdout
+            range(self.initial_timestep, self.timesteps),
+            disable=self.disable_progressbar,
+            file=sys.stdout,
         ):
-
             # pre-interaction
             for agent in self.agents:
                 agent.pre_interaction(timestep=timestep, timesteps=self.timesteps)
@@ -104,23 +102,19 @@ class SequentialTrainer(Trainer):
                 # compute actions
                 actions = torch.vstack(
                     [
-                        agent.act(states[scope[0] : scope[1]], timestep=timestep, timesteps=self.timesteps)[0]
+                        agent.act(
+                            states[scope[0] : scope[1]],
+                            timestep=timestep,
+                            timesteps=self.timesteps,
+                        )[0]
                         for agent, scope in zip(self.agents, self.agents_scope)
                     ]
                 )
 
                 # step the environments
-                next_states, rewards, terminated, truncated, infos = self.env.step(actions)
-
-                # if torch.any(terminated):
-                #     print(f"{terminated=}")
-                #     print(f"{rewards=}")
-                #     print(f"{next_states=}")
-                #     print(f"{states=}")
-                #     print(f"{truncated=}")
-                #     print(f"{infos=}")
-                    # quit()
-
+                next_states, rewards, terminated, truncated, infos = self.env.step(
+                    actions
+                )
 
                 # render scene
                 if not self.headless:
@@ -189,9 +183,10 @@ class SequentialTrainer(Trainer):
         states, infos = self.env.reset()
 
         for timestep in tqdm.tqdm(
-            range(self.initial_timestep, self.timesteps), disable=self.disable_progressbar, file=sys.stdout
+            range(self.initial_timestep, self.timesteps),
+            disable=self.disable_progressbar,
+            file=sys.stdout,
         ):
-
             # pre-interaction
             for agent in self.agents:
                 agent.pre_interaction(timestep=timestep, timesteps=self.timesteps)
@@ -199,18 +194,26 @@ class SequentialTrainer(Trainer):
             with torch.no_grad():
                 # compute actions
                 outputs = [
-                    agent.act(states[scope[0] : scope[1]], timestep=timestep, timesteps=self.timesteps)
+                    agent.act(
+                        states[scope[0] : scope[1]],
+                        timestep=timestep,
+                        timesteps=self.timesteps,
+                    )
                     for agent, scope in zip(self.agents, self.agents_scope)
                 ]
                 actions = torch.vstack(
                     [
-                        output[0] if self.stochastic_evaluation else output[-1].get("mean_actions", output[0])
+                        output[0]
+                        if self.stochastic_evaluation
+                        else output[-1].get("mean_actions", output[0])
                         for output in outputs
                     ]
                 )
 
                 # step the environments
-                next_states, rewards, terminated, truncated, infos = self.env.step(actions)
+                next_states, rewards, terminated, truncated, infos = self.env.step(
+                    actions
+                )
 
                 # render scene
                 if not self.headless:
@@ -239,7 +242,9 @@ class SequentialTrainer(Trainer):
 
             # post-interaction
             for agent in self.agents:
-                super(type(agent), agent).post_interaction(timestep=timestep, timesteps=self.timesteps)
+                super(type(agent), agent).post_interaction(
+                    timestep=timestep, timesteps=self.timesteps
+                )
 
             # reset environments
             if terminated.any() or truncated.any():

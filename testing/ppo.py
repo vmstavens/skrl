@@ -9,7 +9,6 @@ import torch.nn.functional as F
 from packaging import version
 
 from skrl import config, logger
-from skrl.agents.torch.ppo import PPO
 from skrl.memories.torch import Memory
 from skrl.models.torch import Model
 from skrl.resources.schedulers.torch import KLAdaptiveLR
@@ -527,6 +526,8 @@ class PPO(Agent):
         sampled_batches = self.memory.sample_all(
             names=self._tensors_names, mini_batches=self._mini_batches
         )
+        print(f"{sampled_batches=}")
+        print(f"{len(sampled_batches)=}")
 
         cumulative_policy_loss = 0
         cumulative_entropy_loss = 0
@@ -535,6 +536,8 @@ class PPO(Agent):
         # learning epochs
         for epoch in range(self._learning_epochs):
             kl_divergences = []
+
+
 
             # mini-batches loop
             for (

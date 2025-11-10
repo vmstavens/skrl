@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jp
 from mujoco_playground import registry
 
-from testing.env import XPose, default_config
+from testing.envs.xpose import XPose, default_config
 
 
 def setup_environment(env_name: str = "xpose"):
