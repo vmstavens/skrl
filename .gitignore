@@ -9,10 +9,11 @@ test.png
 test.py
 uv.lock
 typings/
-sb.ipynb
 testing/train/results/
 testing/experiments/results/
 testing/experiments/media/
+sb.ipynb
+testing/experiments/attractor/results/models/
 ### Other files ###
 *.xml
 *.mp4

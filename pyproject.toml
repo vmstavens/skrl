@@ -30,6 +30,7 @@ dependencies = [
     "gym>=0.26.2",
     "gymnasium",
     "jax[cuda12]>=0.8.0",
+    "jaxlie>=1.5.0",
     "opencv-python>=4.12.0.88",
     "packaging",
     "playground>=0.0.5",
