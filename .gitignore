@@ -1,10 +1,16 @@
 
+*.json
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,c,c++,visualstudiocode,cmake
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,c,c++,visualstudiocode,cmake
 wandb/
 data/
 memories/
 my_plots/
+.codex
+.codex/
+.agents
+.agents/
 test.png
 test.py
 uv.lock
@@ -12,13 +18,20 @@ typings/
 testing/train/results/
 testing/experiments/results/
 testing/experiments/media/
+testing/experiments/.runs/
+testing/experiments/**/.runs/
 sb.ipynb
 testing/experiments/attractor/results/models/
 ### Other files ###
 *.xml
 *.mp4
+*.gif
 *.zip
 *_old.*
+MUJOCO_LOG.TXT
+rollout_log*.txt
+output*.png
+/*.png
 
 ### Library experiments ###
 *.pt
@@ -28,6 +41,14 @@ testing/experiments/attractor/results/models/
 *.onnx
 events.out.tfevents.*
 runs
+runs/
+media/
+imgs/
+plotting/plots/
+testing/media/
+testing/envs/*rollout*.gif
+testing/envs/mocap_metrics*.png
+testing/envs/mocap_[0-9]*.png
 
 ### C ###
 # Prerequisites

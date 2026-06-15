@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from skrl.trainers.torch.sequential import SequentialTrainer
-from testing.experiments.exp_utils import (
+from testing.experiments.attractor.exp_utils import (
     create_data,
     exp_set_seed,
     get_bc_config,

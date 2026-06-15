@@ -1,11 +1,12 @@
 from typing import Any, Literal, Optional, Sequence, Union
 
+import gym
 import gymnasium
-from gymnasium import spaces
-
 import numpy as np
 import torch
+from gymnasium import spaces
 
+# from gym import spaces
 from skrl import config
 
 
@@ -33,8 +34,15 @@ def convert_gym_space(
     # - Box
     elif isinstance(space, gym.spaces.Box):
         if squeeze_batch_dimension:
-            return spaces.Box(low=space.low[0], high=space.high[0], shape=space.shape[1:], dtype=space.dtype)
-        return spaces.Box(low=space.low, high=space.high, shape=space.shape, dtype=space.dtype)
+            return spaces.Box(
+                low=space.low[0],
+                high=space.high[0],
+                shape=space.shape[1:],
+                dtype=space.dtype,
+            )
+        return spaces.Box(
+            low=space.low, high=space.high, shape=space.shape, dtype=space.dtype
+        )
     # - Discrete
     elif isinstance(space, gym.spaces.Discrete):
         return spaces.Discrete(n=space.n)
@@ -45,7 +53,14 @@ def convert_gym_space(
     # - Tuple
     elif isinstance(space, gym.spaces.Tuple):
         return spaces.Tuple(
-            spaces=tuple([convert_gym_space(s, squeeze_batch_dimension=squeeze_batch_dimension) for s in space.spaces])
+            spaces=tuple(
+                [
+                    convert_gym_space(
+                        s, squeeze_batch_dimension=squeeze_batch_dimension
+                    )
+                    for s in space.spaces
+                ]
+            )
         )
     # - Dict
     elif isinstance(space, gym.spaces.Dict):
@@ -58,7 +73,12 @@ def convert_gym_space(
     raise ValueError(f"Unsupported space ({space})")
 
 
-def tensorize_space(space: Optional[spaces.Space], x: Any, *, device: Optional[Union[str, torch.device]] = None) -> Any:
+def tensorize_space(
+    space: Optional[spaces.Space],
+    x: Any,
+    *,
+    device: Optional[Union[str, torch.device]] = None,
+) -> Any:
     """Convert the sample/value items of a given gymnasium space to PyTorch tensors.
 
     Args:
@@ -82,9 +102,13 @@ def tensorize_space(space: Optional[spaces.Space], x: Any, *, device: Optional[U
         if isinstance(x, torch.Tensor):
             return x.reshape(-1, *space.shape)
         elif isinstance(x, np.ndarray):
-            return torch.tensor(x, device=device, dtype=torch.float32).reshape(-1, *space.shape)
+            return torch.tensor(x, device=device, dtype=torch.float32).reshape(
+                -1, *space.shape
+            )
         else:
-            raise ValueError(f"Unsupported type ({type(x)}) for the given space ({space})")
+            raise ValueError(
+                f"Unsupported type ({type(x)}) for the given space ({space})"
+            )
     # - Discrete
     elif isinstance(space, spaces.Discrete):
         if isinstance(x, torch.Tensor):
@@ -94,17 +118,25 @@ def tensorize_space(space: Optional[spaces.Space], x: Any, *, device: Optional[U
         elif isinstance(x, np.number) or type(x) in [int, float]:
             return torch.tensor([x], device=device, dtype=torch.int32).reshape(-1, 1)
         else:
-            raise ValueError(f"Unsupported type ({type(x)}) for the given space ({space})")
+            raise ValueError(
+                f"Unsupported type ({type(x)}) for the given space ({space})"
+            )
     # - MultiDiscrete
     elif isinstance(space, spaces.MultiDiscrete):
         if isinstance(x, torch.Tensor):
             return x.reshape(-1, *space.shape)
         elif isinstance(x, np.ndarray):
-            return torch.tensor(x, device=device, dtype=torch.int32).reshape(-1, *space.shape)
+            return torch.tensor(x, device=device, dtype=torch.int32).reshape(
+                -1, *space.shape
+            )
         elif type(x) in [list, tuple]:
-            return torch.tensor([x], device=device, dtype=torch.int32).reshape(-1, *space.shape)
+            return torch.tensor([x], device=device, dtype=torch.int32).reshape(
+                -1, *space.shape
+            )
         else:
-            raise ValueError(f"Unsupported type ({type(x)}) for the given space ({space})")
+            raise ValueError(
+                f"Unsupported type ({type(x)}) for the given space ({space})"
+            )
     # composite spaces
     # - Tuple
     elif isinstance(space, spaces.Tuple):
@@ -115,7 +147,9 @@ def tensorize_space(space: Optional[spaces.Space], x: Any, *, device: Optional[U
     raise ValueError(f"Unsupported space ({space})")
 
 
-def untensorize_space(space: Optional[spaces.Space], x: Any, *, squeeze_batch_dimension: bool = True) -> Any:
+def untensorize_space(
+    space: Optional[spaces.Space], x: Any, *, squeeze_batch_dimension: bool = True
+) -> Any:
     """Convert a tensorized space to a gymnasium space with expected sample/value item types.
 
     Args:
@@ -139,7 +173,9 @@ def untensorize_space(space: Optional[spaces.Space], x: Any, *, squeeze_batch_di
         if isinstance(x, torch.Tensor):
             # avoid TypeError: Got unsupported ScalarType BFloat16
             if x.dtype == torch.bfloat16:
-                array = np.array(x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype)
+                array = np.array(
+                    x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype
+                )
             else:
                 array = np.array(x.cpu().numpy(), dtype=space.dtype)
             if squeeze_batch_dimension and array.shape[0] == 1:
@@ -151,7 +187,9 @@ def untensorize_space(space: Optional[spaces.Space], x: Any, *, squeeze_batch_di
         if isinstance(x, torch.Tensor):
             # avoid TypeError: Got unsupported ScalarType BFloat16
             if x.dtype == torch.bfloat16:
-                array = np.array(x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype)
+                array = np.array(
+                    x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype
+                )
             else:
                 array = np.array(x.cpu().numpy(), dtype=space.dtype)
             if squeeze_batch_dimension and array.shape[0] == 1:
@@ -163,7 +201,9 @@ def untensorize_space(space: Optional[spaces.Space], x: Any, *, squeeze_batch_di
         if isinstance(x, torch.Tensor):
             # avoid TypeError: Got unsupported ScalarType BFloat16
             if x.dtype == torch.bfloat16:
-                array = np.array(x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype)
+                array = np.array(
+                    x.to(dtype=torch.float32).cpu().numpy(), dtype=space.dtype
+                )
             else:
                 array = np.array(x.cpu().numpy(), dtype=space.dtype)
             if squeeze_batch_dimension and array.shape[0] == 1:
@@ -174,13 +214,22 @@ def untensorize_space(space: Optional[spaces.Space], x: Any, *, squeeze_batch_di
     # - Tuple
     elif isinstance(space, spaces.Tuple):
         return tuple(
-            [untensorize_space(s, _x, squeeze_batch_dimension=squeeze_batch_dimension) for s, _x in zip(space, x)]
+            [
+                untensorize_space(
+                    s, _x, squeeze_batch_dimension=squeeze_batch_dimension
+                )
+                for s, _x in zip(space, x)
+            ]
         )
     # - Dict
     elif isinstance(space, spaces.Dict):
         return {
-            k: untensorize_space(s, x[k], squeeze_batch_dimension=squeeze_batch_dimension) for k, s in space.items()
+            k: untensorize_space(
+                s, x[k], squeeze_batch_dimension=squeeze_batch_dimension
+            )
+            for k, s in space.items()
         }
+
     raise ValueError(f"Unsupported space ({space})")
 
 
@@ -208,7 +257,9 @@ def flatten_tensorized_space(x: Any) -> Optional[torch.Tensor]:
         return torch.cat([flatten_tensorized_space(_x) for _x in x], dim=-1)
     # - Dict
     elif isinstance(x, dict):
-        return torch.cat([flatten_tensorized_space(x[k]) for k in sorted(x.keys())], dim=-1)
+        return torch.cat(
+            [flatten_tensorized_space(x[k]) for k in sorted(x.keys())], dim=-1
+        )
     raise ValueError(f"Unsupported sample/value type ({type(x)})")
 
 
@@ -261,7 +312,11 @@ def unflatten_tensorized_space(
     raise ValueError(f"Unsupported space ({space})")
 
 
-def compute_space_size(space: Optional[Union[spaces.Space, Sequence[int], int]], *, occupied_size: bool = False) -> int:
+def compute_space_size(
+    space: Optional[Union[spaces.Space, Sequence[int], int]],
+    *,
+    occupied_size: bool = False,
+) -> int:
     """Get the size (number of elements) of a space.
 
     Args:
@@ -286,10 +341,17 @@ def compute_space_size(space: Optional[Union[spaces.Space, Sequence[int], int]],
         # composite spaces
         # - Tuple
         elif isinstance(space, spaces.Tuple):
-            return sum([compute_space_size(s, occupied_size=occupied_size) for s in space])
+            return sum(
+                [compute_space_size(s, occupied_size=occupied_size) for s in space]
+            )
         # - Dict
         elif isinstance(space, spaces.Dict):
-            return sum([compute_space_size(s, occupied_size=occupied_size) for s in space.values()])
+            return sum(
+                [
+                    compute_space_size(s, occupied_size=occupied_size)
+                    for s in space.values()
+                ]
+            )
     # non-gymnasium spaces
     if type(space) in [int, float]:
         return space
@@ -300,7 +362,11 @@ def compute_space_size(space: Optional[Union[spaces.Space, Sequence[int], int]],
 
 
 def sample_space(
-    space: Optional[spaces.Space], *, batch_size: int = 1, backend: str = Literal["numpy", "native"], device=None
+    space: Optional[spaces.Space],
+    *,
+    batch_size: int = 1,
+    backend: str = Literal["numpy", "native"],
+    device=None,
 ) -> Any:
     """Generates a random sample from the specified space.
 
@@ -345,14 +411,24 @@ def sample_space(
         if backend == "numpy":
             return np.array(sample).reshape(batch_size, *space.nvec.shape)
         elif backend == "native":
-            return torch.tensor(sample, device=device).reshape(batch_size, *space.nvec.shape)
+            return torch.tensor(sample, device=device).reshape(
+                batch_size, *space.nvec.shape
+            )
         else:
             raise ValueError(f"Unsupported backend type ({backend})")
     # composite spaces
     # - Tuple
     elif isinstance(space, spaces.Tuple):
-        return tuple([sample_space(s, batch_size=batch_size, backend=backend, device=device) for s in space])
+        return tuple(
+            [
+                sample_space(s, batch_size=batch_size, backend=backend, device=device)
+                for s in space
+            ]
+        )
     # - Dict
     elif isinstance(space, spaces.Dict):
-        return {k: sample_space(s, batch_size=batch_size, backend=backend, device=device) for k, s in space.items()}
+        return {
+            k: sample_space(s, batch_size=batch_size, backend=backend, device=device)
+            for k, s in space.items()
+        }
     raise ValueError(f"Unsupported space ({space})")

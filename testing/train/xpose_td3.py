@@ -1,32 +1,16 @@
 """Train PPO on XPose robot gripper environment."""
 
-import argparse
-import os
 from pathlib import Path
-from typing import Any, Optional
 
-import brax
 import brax.envs as envs
-import gym
-import jax
-import torch
-import torch.nn as nn
-from brax.envs.wrappers.training import VmapWrapper as brax_VmapWrapper
-from mujoco_playground import registry
-from mujoco_playground._src.dm_control_suite import cartpole, pendulum
-from mujoco_playground.config import dm_control_suite_params
+import cv2
 
 # import the skrl components to build the RL system
-from skrl import logger
 from skrl.agents.torch.td3 import TD3, TD3_DEFAULT_CONFIG
 from skrl.envs.torch import wrap_env
 from skrl.envs.wrappers.torch import wrap_env
 from skrl.memories.torch import RandomMemory
-from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
 from skrl.resources.noises.torch import GaussianNoise
-from skrl.resources.preprocessors.torch import RunningStandardScaler
-from skrl.resources.schedulers.torch import KLAdaptiveRL
-from skrl.trainers.torch import SequentialTrainer
 
 # from skrl.trainers.torch import SequentialTrainer
 # from skrl.trainers.torch.sequential import SEQUENTIAL_TRAINER_DEFAULT_CONFIG
@@ -36,11 +20,7 @@ from skrl.trainers.torch.sequential_2 import (
 )
 from skrl.utils import set_seed
 from testing import wrappers as wrap
-from testing.envs.cartpole_brax import InvertedPendulum
-from testing.envs.xpose import XPose, default_config
-from testing.envs.xpose import XPose as mjx_XPose
-from testing.ppo import PPO, PPO_DEFAULT_CONFIG
-from testing.ppo_utils import get_ppo_default_models
+from testing.envs.xpose import XPose
 from testing.td3_utils import get_td3_default_models
 
 # c = dm_control_suite_params("CartpoleBalance")
@@ -158,7 +138,6 @@ def main():
     else:
         env = setup_environment(num_envs=8000, debug=True)
         eval_env = setup_environment(num_envs=1, debug=True)
-        print(".........................................")
     device = env.device
 
     # Setup agent

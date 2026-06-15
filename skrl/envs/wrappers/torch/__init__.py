@@ -18,10 +18,10 @@ from skrl.envs.wrappers.torch.isaaclab_envs import (
 )
 from skrl.envs.wrappers.torch.omniverse_isaacgym_envs import OmniverseIsaacGymWrapper
 from skrl.envs.wrappers.torch.pettingzoo_envs import PettingZooWrapper
-
-# from skrl.envs.wrappers.torch.playground_envs import PlaygroundWrapper
 from skrl.envs.wrappers.torch.robosuite_envs import RobosuiteWrapper
-from testing.wrappers import PlaygroundWrapper
+
+# from skrl.envs.wrappers.torch.mjx_envs import MjxWrapper
+from testing.wrappers import MjxWrapper
 
 __all__ = ["wrap_env", "Wrapper", "MultiAgentEnvWrapper"]
 
@@ -57,6 +57,8 @@ def wrap_env(
                           - ``"dm"``
                         * - Brax
                           - ``"brax"``
+                        * - MJX (mujoco_playground)
+                          - ``"mjx"`` (``"playground"`` alias)
                         * - Isaac Lab
                           - ``"isaaclab"`` (``"isaaclab-single-agent"``)
                         * - Isaac Gym preview 2
@@ -127,7 +129,7 @@ def wrap_env(
         elif _in("rlgpu.tasks..*.VecTask", base_classes):
             return "isaacgym-preview2"
         elif _in("mujoco_playground._src.mjx_env.MjxEnv", base_classes):
-            return "playground"
+            return "mjx"
         elif _in("brax.envs..*", base_classes):
             return "brax"
         elif _in("robosuite.environments.", base_classes):
@@ -171,16 +173,23 @@ def wrap_env(
         if verbose:
             logger.info("Environment wrapper: Bi-DexHands")
         return BiDexHandsWrapper(env)
+
+    elif wrapper == "playground_skrl":
+        if verbose:
+            logger.info("Environment wrapper: MuJoCo Playground")
+        from testing.envs.playground import PlaygroundWrapper
+
+        return PlaygroundWrapper(env)
+
+    elif wrapper in ("mjx", "playground"):
+        if verbose:
+            alias = " (alias: playground)" if wrapper == "playground" else ""
+            logger.info(f"Environment wrapper: MJX{alias}")
+        return MjxWrapper(env)
     elif wrapper == "brax":
         if verbose:
             logger.info("Environment wrapper: Brax")
         return BraxWrapper(env)
-
-    # TODO: added this for playground compatibility
-    elif wrapper == "playground":
-        if verbose:
-            logger.info("Environment wrapper: PlayGround")
-        return PlaygroundWrapper(env)
 
     elif wrapper == "isaacgym-preview2":
         if verbose:

@@ -1,10 +1,9 @@
 from typing import Any, Mapping, Tuple, Union
 
 import gymnasium
-
+import pandas as pd
 import torch
 from torch.distributions import Normal
-
 
 # speed up distribution construction by disabling checking
 Normal.set_default_validate_args(False)
@@ -77,11 +76,17 @@ class GaussianMixin:
               )
             )
         """
-        self._g_clip_actions = clip_actions and isinstance(self.action_space, gymnasium.Space)
+        self._g_clip_actions = clip_actions and isinstance(
+            self.action_space, gymnasium.Space
+        )
 
         if self._g_clip_actions:
-            self._g_clip_actions_min = torch.tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            self._g_clip_actions_max = torch.tensor(self.action_space.high, device=self.device, dtype=torch.float32)
+            self._g_clip_actions_min = torch.tensor(
+                self.action_space.low, device=self.device, dtype=torch.float32
+            )
+            self._g_clip_actions_max = torch.tensor(
+                self.action_space.high, device=self.device, dtype=torch.float32
+            )
 
         self._g_clip_log_std = clip_log_std
         self._g_log_std_min = min_log_std
@@ -96,12 +101,18 @@ class GaussianMixin:
         self._g_reduction = (
             torch.mean
             if reduction == "mean"
-            else torch.sum if reduction == "sum" else torch.prod if reduction == "prod" else None
+            else torch.sum
+            if reduction == "sum"
+            else torch.prod
+            if reduction == "prod"
+            else None
         )
 
     def act(
         self, inputs: Mapping[str, Union[torch.Tensor, Any]], role: str = ""
-    ) -> Tuple[torch.Tensor, Union[torch.Tensor, None], Mapping[str, Union[torch.Tensor, Any]]]:
+    ) -> Tuple[
+        torch.Tensor, Union[torch.Tensor, None], Mapping[str, Union[torch.Tensor, Any]]
+    ]:
         """Act stochastically in response to the state of the environment
 
         :param inputs: Model inputs. The most common keys are:
@@ -138,12 +149,31 @@ class GaussianMixin:
         # distribution
         self._g_distribution = Normal(mean_actions, log_std.exp())
 
+        # distribution
+        # self._g_distribution = Normal(mean_actions, log_std.exp())
+
+        # std = log_std.exp()
+
+        # df_new = pd.DataFrame({
+        #     "mean": mean_actions.detach().cpu().numpy().flatten()[0],
+        #     "std": std.detach().cpu().numpy().flatten()
+        # })
+
+        # df_new.to_csv(
+        #     "/home/vims/git/skrl/testing/experiments/pipe_insert/V2/data/tmp/sac_dist.csv",
+        #     mode="a",
+        #     header=False,
+        #     index=False
+        # )
+
         # sample using the reparameterization trick
         actions = self._g_distribution.rsample()
 
         # clip actions
         if self._g_clip_actions:
-            actions = torch.clamp(actions, min=self._g_clip_actions_min, max=self._g_clip_actions_max)
+            actions = torch.clamp(
+                actions, min=self._g_clip_actions_min, max=self._g_clip_actions_max
+            )
 
         # log of the probability density function
         log_prob = self._g_distribution.log_prob(inputs.get("taken_actions", actions))

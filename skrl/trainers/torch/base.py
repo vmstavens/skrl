@@ -2,6 +2,7 @@ import atexit
 import sys
 from typing import List, Optional, Union
 
+import cv2
 import torch
 import tqdm
 
@@ -191,6 +192,7 @@ class Trainer:
 
         # reset env
         states, infos = self.env.reset()
+        # quit()
 
         for timestep in tqdm.tqdm(
             range(self.initial_timestep, self.timesteps),

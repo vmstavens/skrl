@@ -287,7 +287,7 @@ class VectorGymWrapper(gym.vector.VectorEnv):
             return super().render(mode=mode)
 
 
-class PlaygroundWrapper(Wrapper):
+class MjxWrapper(Wrapper):
     def __init__(self, env: Any, device: Optional[torch.device] = None) -> None:
         """MJX Playground environment wrapper for skrl.
 

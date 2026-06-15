@@ -1,18 +1,18 @@
 # import isaacgym
 # import isaacgymenvs
 import json
+
 import numpy as np
-import torch
 import torch.nn as nn
 
-from skrl.envs.torch import load_isaacgym_env_preview4, wrap_env
+from skrl.envs.torch import wrap_env
 from skrl.memories.torch import RandomMemory
 
 # Import the skrl components to build the RL system
-from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
-from skrl.resources.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
+from skrl.models.torch import DeterministicMixin, Model
+from skrl.resources.noises.torch import GaussianNoise
 from skrl.trainers.torch import SequentialTrainer
-from skrl.utils import postprocessing, set_seed
+from skrl.utils import set_seed
 from testing.shen.BC import BC, BC_DEFAULT_CONFIG
 
 # set the seed for reproducibility
@@ -69,7 +69,7 @@ expert_data = {
     "next_states": [],
     "actions": [],
     "rewards": [],
-    "terminated": []
+    "terminated": [],
 }
 
 for fn in file_names:

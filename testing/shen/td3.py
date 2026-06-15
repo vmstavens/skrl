@@ -399,8 +399,8 @@ class TD3(Agent):
                     truncated=truncated,
                 )
         # print("Recording memory from record_transition...")
-        if timestep == timesteps - 1:
-            self.memory.save("/home/chen/Downloads/new/eval", "csv")
+        # if timestep == timesteps - 1:
+        #     self.memory.save("/home/chen/Downloads/new/eval", "csv")
 
     def pre_interaction(self, timestep: int, timesteps: int) -> None:
         """Callback called before the interaction with the environment

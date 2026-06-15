@@ -97,6 +97,7 @@ class BC(Agent):
         )
 
         self._tensors_names = self.expert_memory.get_tensor_names()
+        # quit()
 
         # models
         self.policy = self.models.get("policy", None)
@@ -190,6 +191,7 @@ class BC(Agent):
         :return: Actions
         :rtype: torch.Tensor
         """
+
         # sample deterministic actions
         actions, _, _ = self.policy.act(
             {"states": self._state_preprocessor(states)}, role="policy"
@@ -319,18 +321,19 @@ class BC(Agent):
         :param timesteps: Number of timesteps
         :type timesteps: int
         """
+
+        # self._tensors_names=['actions', 'next_states', 'rewards', 'states', 'terminated']
+
         # Sample expert buffer
         (
-            sampled_states,
             sampled_actions,
-            sampled_rewards,
             sampled_next_states,
+            sampled_rewards,
+            sampled_states,
             sampled_dones,
         ) = self.expert_memory.sample(
             names=self._tensors_names, batch_size=self._batch_size
         )[0]
-
-        # print(sampled_states)
 
         # gradient steps
         for gradient_step in range(self._gradient_steps):

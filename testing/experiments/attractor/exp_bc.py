@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 
 from skrl.trainers.torch.sequential import SequentialTrainer
-from testing.experiments.exp_utils import (
+from testing.experiments.attractor.exp_utils import (
     exp_set_seed,
     get_bc_config,
     get_bc_models,

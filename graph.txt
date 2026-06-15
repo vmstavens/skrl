@@ -1,4 +1,4 @@
-PlaygroundWrapper
+MjxWrapper
  └── TorchWrapper
       └── VectorGymWrapper
            └── AutoResetWrapper

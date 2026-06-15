@@ -2,9 +2,6 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
-
-from performance import save_timings, timer
-from skrl.trainers.torch.sequential import SequentialTrainer
 from testing.experiments.exp_utils import (
     exp_set_seed,
     get_bc_config,
@@ -16,6 +13,9 @@ from testing.experiments.exp_utils import (
     get_trainer,
     setup_environment,
 )
+
+from performance import save_timings, timer
+from skrl.trainers.torch.sequential import SequentialTrainer
 from testing.shen.drlr import DRLR
 
 # 0) set seed

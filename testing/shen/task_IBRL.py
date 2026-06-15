@@ -2,28 +2,19 @@
 # import isaacgymenvs
 
 import copy
-import itertools
 
-import gym
-import gymnasium
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from skrl.agents.torch.ddpg import DDPG, DDPG_DEFAULT_CONFIG
-from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
-from skrl.agents.torch.td3 import TD3, TD3_DEFAULT_CONFIG
-from skrl.envs.torch import load_isaacgym_env_preview4, wrap_env
+from skrl.envs.torch import wrap_env
 from skrl.memories.torch import RandomMemory
 
 # Import the skrl components to build the RL system
-from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
-from skrl.resources.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
-from skrl.resources.preprocessors.torch import RunningStandardScaler
-from skrl.resources.schedulers.torch import KLAdaptiveRL
+from skrl.models.torch import DeterministicMixin, Model
+from skrl.resources.noises.torch import GaussianNoise
 from skrl.trainers.torch import SequentialTrainer
-from skrl.utils import postprocessing, set_seed
+from skrl.utils import set_seed
 
 # from algorithms.IBRL_active import IBRL
 from testing.shen.IBRL import IBRL, IBRL_DEFAULT_CONFIG

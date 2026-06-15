@@ -59,7 +59,6 @@ class TorchWrapper(gym.Wrapper):
         done = _jax_to_torch(done)
         # print(f"{done[0]=}")
         # print(len(done))
-        # quit()
         # print("--------------------------------------")
         # info = _jax_to_torch(info)
         return obs, reward, done, info
@@ -248,7 +247,7 @@ class BraxAutoResetWrapper(Wrapper):
         return state.replace(data=data, obs=obs)
 
 
-class PlaygroundWrapper(Wrapper):
+class MjxWrapper(Wrapper):
     def __init__(self, env: MjxEnv) -> None:
         """Brax environment wrapper
 

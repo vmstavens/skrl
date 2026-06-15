@@ -146,6 +146,8 @@ class VectorGymWrapper(gym.vector.VectorEnv):
         if not hasattr(self._env, "batch_size"):
             raise ValueError("underlying env must be batched")
 
+        print(f"{self._env.batch_size=}")
+
         self.num_envs = self._env.batch_size
         self.seed(seed)
         self.backend = backend
@@ -254,9 +256,9 @@ class Env(abc.ABC):
         return self
 
 
-class PlaygroundWrapper(Wrapper):
+class MjxWrapper(Wrapper):
     def __init__(self, env: Any) -> None:
-        """Brax environment wrapper
+        """MJX environment wrapper
 
         :param env: The environment to wrap
         :type env: Any supported Brax environment
@@ -476,7 +478,9 @@ class VmapWrapper(Wrapper):
 
     def __init__(self, env: Env, batch_size: Optional[int] = None):
         super().__init__(env)
+        print("------------------- VmapWrapper ---------------------")
         self.batch_size = batch_size
+        print(f"{self.batch_size=}")
 
     def reset(self, rng: jax.Array):
         """Reset all batched environments."""

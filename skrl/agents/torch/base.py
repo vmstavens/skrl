@@ -1,14 +1,13 @@
-from typing import Any, Mapping, Optional, Tuple, Union
-
 import collections
 import copy
 import datetime
 import os
-import gymnasium
-from packaging import version
+from typing import Any, Mapping, Optional, Tuple, Union
 
+import gymnasium
 import numpy as np
 import torch
+from packaging import version
 from torch.utils.tensorboard import SummaryWriter
 
 from skrl import config, logger
@@ -59,12 +58,14 @@ class Agent:
             self.secondary_memories = []
 
         # convert the models to their respective device
-        for model in self.models.values():
-            if model is not None:
-                model.to(model.device)
+        # for model in self.models.values():
+        #     if model is not None:
+        #         model.to(model.device)
 
         self.tracking_data = collections.defaultdict(list)
-        self.write_interval = self.cfg.get("experiment", {}).get("write_interval", "auto")
+        self.write_interval = self.cfg.get("experiment", {}).get(
+            "write_interval", "auto"
+        )
 
         self._track_rewards = collections.deque(maxlen=100)
         self._track_timesteps = collections.deque(maxlen=100)
@@ -75,9 +76,18 @@ class Agent:
 
         # checkpoint
         self.checkpoint_modules = {}
-        self.checkpoint_interval = self.cfg.get("experiment", {}).get("checkpoint_interval", "auto")
-        self.checkpoint_store_separately = self.cfg.get("experiment", {}).get("store_separately", False)
-        self.checkpoint_best_modules = {"timestep": 0, "reward": -(2**31), "saved": False, "modules": {}}
+        self.checkpoint_interval = self.cfg.get("experiment", {}).get(
+            "checkpoint_interval", "auto"
+        )
+        self.checkpoint_store_separately = self.cfg.get("experiment", {}).get(
+            "store_separately", False
+        )
+        self.checkpoint_best_modules = {
+            "timestep": 0,
+            "reward": -(2**31),
+            "saved": False,
+            "modules": {},
+        }
 
         # experiment directory
         directory = self.cfg.get("experiment", {}).get("directory", "")
@@ -86,7 +96,8 @@ class Agent:
             directory = os.path.join(os.getcwd(), "runs")
         if not experiment_name:
             experiment_name = "{}_{}".format(
-                datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S-%f"), self.__class__.__name__
+                datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S-%f"),
+                self.__class__.__name__,
             )
         self.experiment_dir = os.path.join(directory, experiment_name)
 
@@ -156,7 +167,9 @@ class Agent:
                 models_cfg = {k: v._modules for (k, v) in self.models.items()}
             wandb_config = {**self.cfg, **trainer_cfg, **models_cfg}
             # set default values
-            wandb_kwargs = copy.deepcopy(self.cfg.get("experiment", {}).get("wandb_kwargs", {}))
+            wandb_kwargs = copy.deepcopy(
+                self.cfg.get("experiment", {}).get("wandb_kwargs", {})
+            )
             wandb_kwargs.setdefault("name", os.path.split(self.experiment_dir)[-1])
             wandb_kwargs.setdefault("sync_tensorboard", True)
             wandb_kwargs.setdefault("config", {})
@@ -220,36 +233,53 @@ class Agent:
         :param timesteps: Number of timesteps
         :type timesteps: int
         """
-        tag = str(timestep if timestep is not None else datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S-%f"))
+        tag = str(
+            timestep
+            if timestep is not None
+            else datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S-%f")
+        )
         # separated modules
         if self.checkpoint_store_separately:
             for name, module in self.checkpoint_modules.items():
                 torch.save(
                     self._get_internal_value(module),
-                    os.path.join(self.experiment_dir, "checkpoints", f"{name}_{tag}.pt"),
+                    os.path.join(
+                        self.experiment_dir, "checkpoints", f"{name}_{tag}.pt"
+                    ),
                 )
         # whole agent
         else:
             modules = {}
             for name, module in self.checkpoint_modules.items():
                 modules[name] = self._get_internal_value(module)
-            torch.save(modules, os.path.join(self.experiment_dir, "checkpoints", f"agent_{tag}.pt"))
+            torch.save(
+                modules,
+                os.path.join(self.experiment_dir, "checkpoints", f"agent_{tag}.pt"),
+            )
 
         # best modules
-        if self.checkpoint_best_modules["modules"] and not self.checkpoint_best_modules["saved"]:
+        if (
+            self.checkpoint_best_modules["modules"]
+            and not self.checkpoint_best_modules["saved"]
+        ):
             # separated modules
             if self.checkpoint_store_separately:
                 for name, module in self.checkpoint_modules.items():
                     torch.save(
                         self.checkpoint_best_modules["modules"][name],
-                        os.path.join(self.experiment_dir, "checkpoints", f"best_{name}.pt"),
+                        os.path.join(
+                            self.experiment_dir, "checkpoints", f"best_{name}.pt"
+                        ),
                     )
             # whole agent
             else:
                 modules = {}
                 for name, module in self.checkpoint_modules.items():
                     modules[name] = self.checkpoint_best_modules["modules"][name]
-                torch.save(modules, os.path.join(self.experiment_dir, "checkpoints", "best_agent.pt"))
+                torch.save(
+                    modules,
+                    os.path.join(self.experiment_dir, "checkpoints", "best_agent.pt"),
+                )
             self.checkpoint_best_modules["saved"] = True
 
     def act(self, states: torch.Tensor, timestep: int, timesteps: int) -> torch.Tensor:
@@ -308,8 +338,12 @@ class Agent:
         if self.write_interval > 0:
             # compute the cumulative sum of the rewards and timesteps
             if self._cumulative_rewards is None:
-                self._cumulative_rewards = torch.zeros_like(rewards, dtype=torch.float32)
-                self._cumulative_timesteps = torch.zeros_like(rewards, dtype=torch.int32)
+                self._cumulative_rewards = torch.zeros_like(
+                    rewards, dtype=torch.float32
+                )
+                self._cumulative_timesteps = torch.zeros_like(
+                    rewards, dtype=torch.int32
+                )
 
             self._cumulative_rewards.add_(rewards)
             self._cumulative_timesteps.add_(1)
@@ -317,31 +351,56 @@ class Agent:
             # check ended episodes
             finished_episodes = (terminated + truncated).nonzero(as_tuple=False)
             if finished_episodes.numel():
-
                 # storage cumulative rewards and timesteps
-                self._track_rewards.extend(self._cumulative_rewards[finished_episodes][:, 0].reshape(-1).tolist())
-                self._track_timesteps.extend(self._cumulative_timesteps[finished_episodes][:, 0].reshape(-1).tolist())
+                self._track_rewards.extend(
+                    self._cumulative_rewards[finished_episodes][:, 0]
+                    .reshape(-1)
+                    .tolist()
+                )
+                self._track_timesteps.extend(
+                    self._cumulative_timesteps[finished_episodes][:, 0]
+                    .reshape(-1)
+                    .tolist()
+                )
 
                 # reset the cumulative rewards and timesteps
                 self._cumulative_rewards[finished_episodes] = 0
                 self._cumulative_timesteps[finished_episodes] = 0
 
             # record data
-            self.tracking_data["Reward / Instantaneous reward (max)"].append(torch.max(rewards).item())
-            self.tracking_data["Reward / Instantaneous reward (min)"].append(torch.min(rewards).item())
-            self.tracking_data["Reward / Instantaneous reward (mean)"].append(torch.mean(rewards).item())
+            self.tracking_data["Reward / Instantaneous reward (max)"].append(
+                torch.max(rewards).item()
+            )
+            self.tracking_data["Reward / Instantaneous reward (min)"].append(
+                torch.min(rewards).item()
+            )
+            self.tracking_data["Reward / Instantaneous reward (mean)"].append(
+                torch.mean(rewards).item()
+            )
 
             if len(self._track_rewards):
                 track_rewards = np.array(self._track_rewards)
                 track_timesteps = np.array(self._track_timesteps)
 
-                self.tracking_data["Reward / Total reward (max)"].append(np.max(track_rewards))
-                self.tracking_data["Reward / Total reward (min)"].append(np.min(track_rewards))
-                self.tracking_data["Reward / Total reward (mean)"].append(np.mean(track_rewards))
+                self.tracking_data["Reward / Total reward (max)"].append(
+                    np.max(track_rewards)
+                )
+                self.tracking_data["Reward / Total reward (min)"].append(
+                    np.min(track_rewards)
+                )
+                self.tracking_data["Reward / Total reward (mean)"].append(
+                    np.mean(track_rewards)
+                )
 
-                self.tracking_data["Episode / Total timesteps (max)"].append(np.max(track_timesteps))
-                self.tracking_data["Episode / Total timesteps (min)"].append(np.min(track_timesteps))
-                self.tracking_data["Episode / Total timesteps (mean)"].append(np.mean(track_timesteps))
+                self.tracking_data["Episode / Total timesteps (max)"].append(
+                    np.max(track_timesteps)
+                )
+                self.tracking_data["Episode / Total timesteps (min)"].append(
+                    np.min(track_timesteps)
+                )
+                self.tracking_data["Episode / Total timesteps (mean)"].append(
+                    np.mean(track_timesteps)
+                )
 
     def set_mode(self, mode: str) -> None:
         """Set the model mode (training or evaluation)
@@ -384,7 +443,9 @@ class Agent:
         :type path: str
         """
         if version.parse(torch.__version__) >= version.parse("1.13"):
-            modules = torch.load(path, map_location=self.device, weights_only=False)  # prevent torch:FutureWarning
+            modules = torch.load(
+                path, map_location=self.device, weights_only=False
+            )  # prevent torch:FutureWarning
         else:
             modules = torch.load(path, map_location=self.device)
         if type(modules) is dict:
@@ -398,7 +459,9 @@ class Agent:
                     else:
                         raise NotImplementedError
                 else:
-                    logger.warning(f"Cannot load the {name} module. The agent doesn't have such an instance")
+                    logger.warning(
+                        f"Cannot load the {name} module. The agent doesn't have such an instance"
+                    )
 
     def migrate(
         self,
@@ -606,22 +669,42 @@ class Agent:
         # state_preprocessor
         if "state_preprocessor" in self.checkpoint_modules:
             if "running_mean_std.running_mean" in checkpoint["model"]:
-                state_dict = copy.deepcopy(self.checkpoint_modules["state_preprocessor"].state_dict())
-                state_dict["running_mean"] = checkpoint["model"]["running_mean_std.running_mean"]
-                state_dict["running_variance"] = checkpoint["model"]["running_mean_std.running_var"]
-                state_dict["current_count"] = checkpoint["model"]["running_mean_std.count"]
-                self.checkpoint_modules["state_preprocessor"].load_state_dict(state_dict)
+                state_dict = copy.deepcopy(
+                    self.checkpoint_modules["state_preprocessor"].state_dict()
+                )
+                state_dict["running_mean"] = checkpoint["model"][
+                    "running_mean_std.running_mean"
+                ]
+                state_dict["running_variance"] = checkpoint["model"][
+                    "running_mean_std.running_var"
+                ]
+                state_dict["current_count"] = checkpoint["model"][
+                    "running_mean_std.count"
+                ]
+                self.checkpoint_modules["state_preprocessor"].load_state_dict(
+                    state_dict
+                )
                 del checkpoint["model"]["running_mean_std.running_mean"]
                 del checkpoint["model"]["running_mean_std.running_var"]
                 del checkpoint["model"]["running_mean_std.count"]
         # value_preprocessor
         if "value_preprocessor" in self.checkpoint_modules:
             if "value_mean_std.running_mean" in checkpoint["model"]:
-                state_dict = copy.deepcopy(self.checkpoint_modules["value_preprocessor"].state_dict())
-                state_dict["running_mean"] = checkpoint["model"]["value_mean_std.running_mean"]
-                state_dict["running_variance"] = checkpoint["model"]["value_mean_std.running_var"]
-                state_dict["current_count"] = checkpoint["model"]["value_mean_std.count"]
-                self.checkpoint_modules["value_preprocessor"].load_state_dict(state_dict)
+                state_dict = copy.deepcopy(
+                    self.checkpoint_modules["value_preprocessor"].state_dict()
+                )
+                state_dict["running_mean"] = checkpoint["model"][
+                    "value_mean_std.running_mean"
+                ]
+                state_dict["running_variance"] = checkpoint["model"][
+                    "value_mean_std.running_var"
+                ]
+                state_dict["current_count"] = checkpoint["model"][
+                    "value_mean_std.count"
+                ]
+                self.checkpoint_modules["value_preprocessor"].load_state_dict(
+                    state_dict
+                )
                 del checkpoint["model"]["value_mean_std.running_mean"]
                 del checkpoint["model"]["value_mean_std.running_var"]
                 del checkpoint["model"]["value_mean_std.count"]
@@ -629,7 +712,11 @@ class Agent:
         # model
         status = True
         for name, module in self.checkpoint_modules.items():
-            if module not in ["state_preprocessor", "value_preprocessor", "optimizer"] and hasattr(module, "migrate"):
+            if module not in [
+                "state_preprocessor",
+                "value_preprocessor",
+                "optimizer",
+            ] and hasattr(module, "migrate"):
                 if verbose:
                     logger.info(f"Model: {name} ({type(module).__name__})")
                 status *= module.migrate(
@@ -663,21 +750,32 @@ class Agent:
         timestep += 1
 
         # update best models and write checkpoints
-        if timestep > 1 and self.checkpoint_interval > 0 and not timestep % self.checkpoint_interval:
+        if (
+            timestep > 1
+            and self.checkpoint_interval > 0
+            and not timestep % self.checkpoint_interval
+        ):
             # update best models
-            reward = np.mean(self.tracking_data.get("Reward / Total reward (mean)", -(2**31)))
+            reward = np.mean(
+                self.tracking_data.get("Reward / Total reward (mean)", -(2**31))
+            )
             if reward > self.checkpoint_best_modules["reward"]:
                 self.checkpoint_best_modules["timestep"] = timestep
                 self.checkpoint_best_modules["reward"] = reward
                 self.checkpoint_best_modules["saved"] = False
                 self.checkpoint_best_modules["modules"] = {
-                    k: copy.deepcopy(self._get_internal_value(v)) for k, v in self.checkpoint_modules.items()
+                    k: copy.deepcopy(self._get_internal_value(v))
+                    for k, v in self.checkpoint_modules.items()
                 }
             # write checkpoints
             self.write_checkpoint(timestep, timesteps)
 
         # write to tensorboard
-        if timestep > 1 and self.write_interval > 0 and not timestep % self.write_interval:
+        if (
+            timestep > 1
+            and self.write_interval > 0
+            and not timestep % self.write_interval
+        ):
             self.write_tracking_data(timestep, timesteps)
 
     def _update(self, timestep: int, timesteps: int) -> None:

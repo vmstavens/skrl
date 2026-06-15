@@ -376,7 +376,6 @@ class Agent:
             # print(f"{self._cumulative_timesteps[finished_episodes].flatten()=}")
             # print(f"{self._cumulative_timesteps[finished_episodes][:, 0].flatten()=}")
             # if np.linalg.norm(self._track_timesteps - np.ones_like(self._track_timesteps)) < 0.01:
-            #     quit()
 
             # reset the cumulative rewards and timesteps
             self._cumulative_rewards[finished_episodes] = 0

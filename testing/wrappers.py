@@ -1,4 +1,5 @@
 import abc
+import importlib
 from typing import (
     Any,
     Callable,
@@ -50,6 +51,42 @@ Observation = Union[jax.Array, Mapping[str, jax.Array]]
 ObservationSize = Union[int, Mapping[str, Union[Tuple[int, ...], int]]]
 
 
+def _ensure_warp_internal_module() -> None:
+    """Keep warp._src reachable for MJX-Warp FFI callbacks."""
+    try:
+        import warp as wp
+    except Exception:
+        return
+
+    try:
+        wp_src = importlib.import_module("warp._src")
+    except Exception:
+        return
+
+    if getattr(wp, "_src", None) is not wp_src:
+        setattr(wp, "_src", wp_src)
+
+    original_getattr = getattr(wp, "__getattr__", None)
+    if callable(original_getattr) and not getattr(wp, "_skrl_src_getattr_patch", False):
+
+        def _patched_getattr(name):
+            if name == "_src":
+                src = importlib.import_module("warp._src")
+                setattr(wp, "_src", src)
+                return src
+            return original_getattr(name)
+
+        wp.__getattr__ = _patched_getattr
+        setattr(wp, "_skrl_src_getattr_patch", True)
+
+    # Ensure context.py references the same top-level module object.
+    try:
+        wp_context = importlib.import_module("warp._src.context")
+        wp_context.warp = wp
+    except Exception:
+        pass
+
+
 class TorchWrapper(gym.Wrapper):
     """Wrapper that converts Jax tensors to PyTorch tensors."""
 
@@ -69,6 +106,7 @@ class TorchWrapper(gym.Wrapper):
         reward = jax_to_torch(reward, device=self.device)
         done = jax_to_torch(done, device=self.device)
         info = jax_to_torch(info, device=self.device)
+        # print(f"Torch {done=}")
         return obs, reward, done, info
 
 
@@ -93,13 +131,19 @@ class VectorGymWrapper(gym.vector.VectorEnv):
         self.backend = backend
         self._state = None
         self._renderer = None
+        self._render_data = None
 
+        # obs = np.inf * np.ones(self._env.observation_size)
+        # obs = np.inf * np.ones(self._env.observation_size, dtype=np.float32)
         obs = np.inf * np.ones(self._env.observation_size, dtype="float32")
+
+        # obs_space = spaces.Box(-obs, obs, dtype=np.float32)
         obs_space = spaces.Box(-obs, obs, dtype="float32")
         self.observation_space = utils.batch_space(obs_space, self.num_envs)
 
         action = jax.tree.map(np.array, self._env.mjx_model.actuator_ctrlrange)
         # action = jax.tree.map(np.array, self._env.sys.actuator.ctrl_range)
+        # action_space = spaces.Box(action[:, 0], action[:, 1], dtype=np.float32)
         action_space = spaces.Box(action[:, 0], action[:, 1], dtype="float32")
         self.action_space = utils.batch_space(action_space, self.num_envs)
 
@@ -118,11 +162,14 @@ class VectorGymWrapper(gym.vector.VectorEnv):
         self._step = jax.jit(step, backend=self.backend)
 
     def reset(self):
+        _ensure_warp_internal_module()
         self._state, obs, self._key = self._reset(self._key)
         return obs
 
     def step(self, action):
+        _ensure_warp_internal_module()
         self._state, obs, reward, done, info = self._step(self._state, action)
+
         return obs, reward, done, info
 
     def seed(self, seed: int = 0):
@@ -140,7 +187,15 @@ class VectorGymWrapper(gym.vector.VectorEnv):
     #     else:
     #         return super().render(mode=mode)  # just raise an exception
 
-    def render(self, mode="human", width=256, height=256, cam_name: str = None):
+    def render(
+        self,
+        mode="human",
+        width=256,
+        height=256,
+        cam_name: str = None,
+        env_index: Optional[int] = None,
+    ):
+        # def render(self, mode="human", width=256 * 2, height=256 * 2, cam_name: str = None):
         if self._renderer is None:
             self._renderer = mj.Renderer(self._env.mj_model, width=width, height=height)
             if self._env.mj_model.ncam == 0:
@@ -155,9 +210,26 @@ class VectorGymWrapper(gym.vector.VectorEnv):
                     self._cam_id = self._env.mj_model.cam(cam_name).id
         if mode == "rgb_array":
             state: State = self._state
-            data = mjx.get_data(self._env.mj_model, state.data)[0]
-            self._renderer.update_scene(data=data, camera=self._cam_id)
-            image = np.zeros(shape=(width, height, 3))
+            data = state.data
+            try:
+                if getattr(data, "qpos", None) is not None and data.qpos.ndim > 1:
+                    batch_size = data.qpos.shape[0]
+                    render_env_index = 0 if env_index is None else env_index
+
+                    def _slice(x):
+                        if hasattr(x, "ndim") and x.ndim > 0 and x.shape[0] == batch_size:
+                            return x[render_env_index]
+                        return x
+
+                    data = jax.tree_util.tree_map(_slice, data)
+            except Exception:
+                pass
+
+            if self._render_data is None:
+                self._render_data = mj.MjData(self._env.mj_model)
+
+            mjx.get_data_into(self._render_data, self._env.mj_model, data)
+            self._renderer.update_scene(data=self._render_data, camera=self._cam_id)
             image = self._renderer.render()
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             return image
@@ -285,7 +357,28 @@ class EpisodeWrapper(Wrapper):
         one = jp.ones_like(state.done)
         zero = jp.zeros_like(state.done)
         episode_length = jp.array(self.episode_length, dtype=jp.int32)
+
         done = jp.where(steps >= episode_length, one, state.done)
+
+        # def _print_reward(_):
+        #     part1 = steps >= episode_length
+        #     part2 = one
+        #     part3 = state.done
+
+        #     jax.debug.print("EpisodeWrapper done: {done}", done=done)
+        #     jax.debug.print("EpisodeWrapper part1: {part1}", part1=part1)
+        #     jax.debug.print("EpisodeWrapper part2: {part2}", part2=part2)
+        #     jax.debug.print("EpisodeWrapper part3: {part3}", part3=part3)
+
+        #     # jax.debug.print("success success: {success}", success=success)
+        #     # jax.debug.print("\tsuccess reward: {reward}", reward=reward)
+        #     # jax.debug.print("\tsuccess part1: {part1}", part1=part1)
+        #     # jax.debug.print("\tsuccess part2: {part2}", part2=part2)
+        #     # jax.debug.print("\tsuccess part3: {part3}", part3=part3)
+        #     return None
+
+        # jax.lax.cond(True, _print_reward, lambda _: None, operand=None)
+
         state.info["truncation"] = jp.where(
             steps >= episode_length, 1 - state.done, zero
         )
@@ -382,9 +475,9 @@ class VmapWrapper(Wrapper):
         self.env = None
 
 
-class PlaygroundWrapper(skrl_Wrapper):
+class MjxWrapper(skrl_Wrapper):
     def __init__(self, env: Any) -> None:
-        """Brax environment wrapper
+        """MJX environment wrapper
 
         :param env: The environment to wrap
         :type env: Any supported Brax environment
@@ -423,13 +516,47 @@ class PlaygroundWrapper(skrl_Wrapper):
         :return: Observation, reward, terminated, truncated, info
         :rtype: tuple of torch.Tensor and any other info
         """
-        observation, reward, terminated, info = self._env.step(
+
+        observation, reward, done, info = self._env.step(
             unflatten_tensorized_space(self.action_space, actions)
         )
         observation = flatten_tensorized_space(
             tensorize_space(self.observation_space, observation)
         )
-        truncated = torch.zeros_like(terminated)
+        done = done.bool()
+        if isinstance(info, dict) and "truncation" in info:
+            truncated = info["truncation"]
+            if not torch.is_tensor(truncated):
+                truncated = torch.as_tensor(truncated, device=done.device)
+            truncated = truncated.bool().view_as(done)
+        else:
+            truncated = torch.zeros_like(done)
+        terminated = done & ~truncated
+        terminated = done
+
+        if isinstance(info, dict):
+            episode_metrics = info.get("episode_metrics")
+            episode_done = info.get("episode_done")
+            if isinstance(episode_metrics, dict) and torch.is_tensor(episode_done):
+                done_mask = episode_done.bool().flatten()
+                if done_mask.any():
+                    episode = {}
+                    length = episode_metrics["length"][done_mask].float().clamp_min(1.0)
+
+                    for name, value in episode_metrics.items():
+                        if not torch.is_tensor(value):
+                            continue
+                        selected = value[done_mask].float()
+                        if name == "length":
+                            episode[name] = selected.mean()
+                        elif name == "sum_reward":
+                            episode[name] = selected.mean()
+                        else:
+                            episode[name] = (selected / length).mean()
+
+                    if episode:
+                        info["episode"] = episode
+
         return (
             observation,
             reward.view(-1, 1),
@@ -445,6 +572,7 @@ class PlaygroundWrapper(skrl_Wrapper):
         :rtype: torch.Tensor and any other info
         """
         observation = self._env.reset()
+
         observation = flatten_tensorized_space(
             tensorize_space(self.observation_space, observation)
         )
@@ -465,7 +593,8 @@ class PlaygroundWrapper(skrl_Wrapper):
     def render(self, *args, **kwargs) -> None:
         """Render the environment"""
 
-        frame = self._env.render(mode="rgb_array", **kwargs)
+        frame = self._env.render(**kwargs)
+        # frame = self._env.render(mode="rgb_array", **kwargs)
 
         # render the frame using OpenCV
         # try:
@@ -499,11 +628,14 @@ class BraxAutoResetWrapper(Wrapper):
             steps = state.info["steps"]
             steps = jp.where(state.done, jp.zeros_like(steps), steps)
             state.info.update(steps=steps)
+
         state = state.replace(done=jp.zeros_like(state.done))
         state = self.env.step(state, action)
 
         def where_done(x, y):
             done = state.done
+            if done.shape and done.shape[0] != x.shape[0]:
+                return y
             if done.shape:
                 done = jp.reshape(done, [x.shape[0]] + [1] * (len(x.shape) - 1))
             return jp.where(done, x, y)
@@ -519,6 +651,7 @@ def create(
     action_repeat: int = 1,
     auto_reset: bool = True,
     batch_size: Optional[int] = None,
+    domain_randomization_fn: Callable = None,
     **kwargs,
 ) -> Env:
     """Creates an environment from the registry.
@@ -534,9 +667,9 @@ def create(
     Returns:
     env: an environment
     """
-
     env = EpisodeWrapper(env, episode_length, action_repeat)
     env = VmapWrapper(env, batch_size=batch_size)  # pytype: disable=wrong-arg-types
-    env = BraxAutoResetWrapper(env)
+    if auto_reset:
+        env = BraxAutoResetWrapper(env)
     return env
     # TODO: see brax wrapper for nice structure
